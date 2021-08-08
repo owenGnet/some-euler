@@ -6,25 +6,23 @@
 --For example, the proper divisors of 220 are 1, 2, 4, 5, 10, 11, 20, 22, 44, 55 and 110; therefore d(220) = 284.
 --The proper divisors of 284 are 1, 2, 4, 71 and 142; so d(284) = 220.
 --Evaluate the sum of all the amicable numbers under 10000.
-;WITH cte1 AS
-(
-	SELECT Number, SQRT(Number) + 1 as NumTo
-	FROM Numbers
-	WHERE Number <= 10000
+;WITH cte1 AS (
+    SELECT Number, SQRT(Number) + 1 AS NumTo
+    FROM Numbers
+    WHERE Number <= 10000
 )
-,cte2 AS
-(
-	SELECT N1.Number, SUM(N2.Number + N1.Number / N2.Number) + 1 as DivSum
-	FROM cte1 N1
-	CROSS JOIN cte1  N2
-	WHERE N1.Number BETWEEN 1 AND 10000
-		AND N2.Number BETWEEN 2 AND N1.numTo AND N1.Number % N2.Number = 0
-	GROUP BY N1.Number
+,cte2 AS (
+    SELECT N1.Number, SUM(N2.Number + N1.Number / N2.Number) + 1 AS DivSum
+    FROM cte1 AS N1
+    CROSS JOIN cte1 AS N2
+    WHERE N1.Number BETWEEN 1 AND 10000
+        AND N2.Number BETWEEN 2 AND N1.numTo AND N1.Number % N2.Number = 0
+    GROUP BY N1.Number
 )
-SELECT SUM(c1.Number) as Answer21
-FROM cte1 c1
-INNER JOIN cte2 c2 on c2.DivSum = c1.Number
-WHERE c1.Number != c2.Number AND c2.Number =  (SELECT DivSum FROM cte2 Where Number = c1.Number)
+SELECT SUM(c1.Number) AS Answer21
+FROM cte1 AS c1
+INNER JOIN cte2 AS c2 ON c2.DivSum = c1.Number
+WHERE c1.Number != c2.Number AND c2.Number = (SELECT DivSum FROM cte2 WHERE Number = c1.Number)
 
 
 
@@ -36,42 +34,38 @@ WHERE c1.Number != c2.Number AND c2.Number =  (SELECT DivSum FROM cte2 Where Num
 --is the 938th name in the list.
 --So, COLIN would obtain a score of 938 × 53 = 49714.
 --What is the total of all the name scores in the file?
-
 DECLARE @Alphabet CHAR(26) = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 DECLARE @Names VARCHAR(MAX)
-SELECT  @Names = REPLACE(BulkColumn, '"','')
-FROM    OPENROWSET(BULK 'C:\temp\p022_names.txt', SINGLE_BLOB) AS N
+SELECT @Names = REPLACE(BulkColumn, '"','')
+FROM OPENROWSET(BULK 'C:\temp\p022_names.txt', SINGLE_BLOB) AS N
 --There are other, presumably more performant, T-SQL split algorithms out there but everthing completes in
 --	a couple of seconds so I did't bother investigating (and that way I only needed to look up the OPENROWSET syntax)
-;WITH cte1 AS
-(
-	SELECT SUBSTRING(@Names, 0, CHARINDEX(',',@Names)) as Name, RIGHT(@Names, LEN(@Names) - CHARINDEX(',',@Names)) as Names,
-		CAST(1 as BIGINT) as chrIndex
-	UNION ALL
-	SELECT CASE WHEN CHARINDEX(',',Names) > 1
-			THEN SUBSTRING(Names, 0, CHARINDEX(',',Names))
-			ELSE Names END as Name,
-		RIGHT(Names, LEN(Names) - CHARINDEX(',',Names)) as Names, CHARINDEX(',',Names) as chrIndex
-	FROM cte1
-	WHERE chrIndex >= 1
+;WITH cte1 AS (
+    SELECT SUBSTRING(@Names, 0, CHARINDEX(',',@Names)) AS Name, RIGHT(@Names, LEN(@Names) - CHARINDEX(',',@Names)) AS Names,
+        CAST(1 AS BIGINT) AS chrIndex
+    UNION ALL
+    SELECT CASE WHEN CHARINDEX(',', Names) > 1
+            THEN SUBSTRING(Names, 0, CHARINDEX(',', Names))
+            ELSE Names END AS Name,
+        RIGHT(Names, LEN(Names) - CHARINDEX(',', Names)) AS Names, CHARINDEX(',', Names) AS chrIndex
+    FROM cte1
+    WHERE chrIndex >= 1
 )
-,cte2 AS
-(
-	SELECT A.Name, SUM(A.Val) as Total
-	FROM (
-		SELECT Name, SUBSTRING(Name, Number, 1) as Letter, CHARINDEX(SUBSTRING(Name, Number, 1), @Alphabet) as Val
-		FROM cte1
-			CROSS APPLY (SELECT Number FROM Numbers WHERE Number < LEN(Name) + 1) N
-	) A
-	GROUP BY A.Name
+,cte2 AS (
+    SELECT A.Name, SUM(A.Val) AS Total
+    FROM (
+        SELECT Name, SUBSTRING(Name, Number, 1) AS Letter, CHARINDEX(SUBSTRING(Name, Number, 1), @Alphabet) AS Val
+        FROM cte1
+            CROSS APPLY (SELECT Number FROM Numbers WHERE Number < LEN(Name) + 1) AS N
+    ) AS A
+    GROUP BY A.Name
 )
 SELECT SUM(A.Total * A.alphaOrder)
 FROM (
-	SELECT Name, Total, ROW_NUMBER() OVER(ORDER BY Name) as alphaOrder
-	FROM cte2
-) A
+    SELECT Name, Total, ROW_NUMBER() OVER(ORDER BY Name) AS alphaOrder
+    FROM cte2
+) AS A
 OPTION (MAXRECURSION 0)
-
 
 
 --Problem 23		Non-abundant Sums
@@ -95,39 +89,37 @@ GO
 DECLARE @StopValue INT = 28123;
 CREATE Table #temp(Number INT NOT NULL, NumTo INT, SumOfDivisors INT, PRIMARY KEY (Number));
 INSERT INTO #temp
-	SELECT Number, CASE WHEN Number % 2 = 0 THEN Number/2
-						WHEN Number % 5 = 0 THEN Number/5
-						ELSE SQRT(Number) + 1 END as NumTo
-			,NULL AS SumOfDivisors
-			--would an OddEven column here help in having odd numbers skip division-by-even attempts?
-	FROM Numbers
-	WHERE Number BETWEEN 2 AND @StopValue ;
+    SELECT Number, CASE WHEN Number % 2 = 0 THEN Number/2
+                        WHEN Number % 5 = 0 THEN Number/5
+                        ELSE SQRT(Number) + 1 END AS NumTo,
+            NULL AS SumOfDivisors
+            --would an OddEven column here help in having odd numbers skip division-by-even attempts?
+    FROM Numbers
+    WHERE Number BETWEEN 2 AND @StopValue;
 
-;WITH cteDivSums AS
-(
-	SELECT N1.Number, SUM(N1.Number / N2.Number) + 1 as DivSum
-	FROM #temp N1
-	CROSS JOIN #temp N2
-	WHERE N1.Number % N2.Number = 0 AND N2.Number <= N1.NumTo
-	GROUP BY N1.Number
-	HAVING SUM(N1.Number / N2.Number) + 1 > N1.Number
+;WITH cteDivSums AS (
+    SELECT N1.Number, SUM(N1.Number / N2.Number) + 1 AS DivSum
+    FROM #temp AS N1
+    CROSS JOIN #temp N2
+    WHERE N1.Number % N2.Number = 0 AND N2.Number <= N1.NumTo
+    GROUP BY N1.Number
+    HAVING SUM(N1.Number / N2.Number) + 1 > N1.Number
 )
 --SELECT * FROM cteDivSums
 UPDATE T
 SET T.SumOfDivisors = c2.DivSum
-FROM #temp T
-INNER JOIN cteDivSums c2 on c2.Number = T.Number;
+FROM #temp AS T
+INNER JOIN cteDivSums c2 ON c2.Number = T.Number;
 
 DELETE FROM #temp WHERE SumOfDivisors IS NULL;
 
-SELECT SUM(Number) as Problem23_Answer
+SELECT SUM(Number) AS Problem23_Answer
 FROM Numbers
-WHERE Number < @StopValue AND Number NOT IN
-(
-	SELECT c.Number + cc.Number as IsAbundantSum
-	FROM #temp c
-	INNER JOIN #temp cc on cc.Number <= c.Number
-	WHERE c.Number + cc.Number < @StopValue
+WHERE Number < @StopValue AND Number NOT IN (
+    SELECT c.Number + cc.Number AS IsAbundantSum
+    FROM #temp AS c
+    INNER JOIN #temp cc ON cc.Number <= c.Number
+    WHERE c.Number + cc.Number < @StopValue
 );
 
 DROP TABLE #temp;
@@ -141,44 +133,41 @@ DROP TABLE #temp;
 --	012   021   102   120   201   210
 --What is the millionth lexicographic permutation of the digits 0, 1, 2, 3, 4, 5, 6, 7, 8 and 9?
 --NOTE: 10! = 3628800
-;WITH cteOne AS
-(
-	SELECT CONCAT(aN, bN, cN, dN, eN, fN, gN, hN, [iN], jN) as fullNum
-		--RowNum solution taking a few seconds longer
-		--,ROW_NUMBER() OVER (ORDER BY aN, bN, cN, dN, eN, fN, gN, hN, [iN], jN) as RowNum
-	FROM
-	(
-		SELECT a.N as aN, b.n as bN, c.n as cN, d.n as dN, e.n as eN, f.n as fN, g.n as gN, h.n as hN, i.n as [iN], j.n as jN
-
-	** --try belwo with 0,1,2, as only nums for a(n) ??
-		FROM (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) a(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) b(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) c(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) d(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) e(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) f(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) g(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) h(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) i(n)
-			CROSS JOIN (VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9)) j(n)
-		WHERE a.n < 3 --started off w/10 but if 10!/3,628,800 combos, safe to assume the answer will begin with 0/1/2
-	) A
-	WHERE aN NOT IN (bN, cN, dN, eN, fN, gN, hN, [iN], jN)
-		AND bN NOT IN (aN, cN, dN, eN, fN, gN, hN, [iN], jN)
-		AND cN NOT IN (aN, bN, dN, eN, fN, gN, hN, [iN], jN)
-		AND dN NOT IN (aN, cN, bN, eN, fN, gN, hN, [iN], jN)
-		AND eN NOT IN (aN, cN, dN, bN, fN, gN, hN, [iN], jN)
-		AND fN NOT IN (aN, cN, dN, eN, bN, gN, hN, [iN], jN)
-		AND gN NOT IN (aN, cN, dN, eN, fN, bN, hN, [iN], jN)
-		AND hN NOT IN (aN, cN, dN, eN, fN, gN, bN, [iN], jN)
-		AND [iN] NOT IN (aN, cN, dN, eN, fN, gN, hN, [bN], jN)
-		AND jN NOT IN (aN, cN, dN, eN, fN, gN, hN, [iN], bN)
+;WITH cteOne AS (
+    SELECT CONCAT(aN, bN, cN, dN, eN, fN, gN, hN, [iN], jN) AS fullNum
+        --RowNum solution taking a few seconds longer
+        --,ROW_NUMBER() OVER (ORDER BY aN, bN, cN, dN, eN, fN, gN, hN, [iN], jN) AS RowNum
+    FROM
+    (
+        SELECT a.N AS aN, b.n AS bN, c.n AS cN, d.n AS dN, e.n AS eN, f.n AS fN, g.n AS gN, h.n AS hN, i.n AS [iN], j.n AS jN
+        --try belwo with 0,1,2, AS only nums for a(n) ??
+        FROM (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) a(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) b(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) c(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) d(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) e(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) f(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) g(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) h(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) i(n)
+            CROSS JOIN (VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9)) j(n)
+        WHERE a.n < 3 --started off w/10 but if 10!/3,628,800 combos, safe to assume the answer will begin with 0/1/2
+    ) AS A
+    WHERE aN NOT IN (bN, cN, dN, eN, fN, gN, hN, [iN], jN)
+        AND bN NOT IN (aN, cN, dN, eN, fN, gN, hN, [iN], jN)
+        AND cN NOT IN (aN, bN, dN, eN, fN, gN, hN, [iN], jN)
+        AND dN NOT IN (aN, cN, bN, eN, fN, gN, hN, [iN], jN)
+        AND eN NOT IN (aN, cN, dN, bN, fN, gN, hN, [iN], jN)
+        AND fN NOT IN (aN, cN, dN, eN, bN, gN, hN, [iN], jN)
+        AND gN NOT IN (aN, cN, dN, eN, fN, bN, hN, [iN], jN)
+        AND hN NOT IN (aN, cN, dN, eN, fN, gN, bN, [iN], jN)
+        AND [iN] NOT IN (aN, cN, dN, eN, fN, gN, hN, [bN], jN)
+        AND jN NOT IN (aN, cN, dN, eN, fN, gN, hN, [iN], bN)
 )
 SELECT fullNum
 FROM cteOne
 ORDER BY fullNum
 OFFSET 999999 ROWS FETCH NEXT 1 ROWS ONLY
-
 
 
 --Problem 51		Prime digit replacements
@@ -190,49 +179,50 @@ OFFSET 999999 ROWS FETCH NEXT 1 ROWS ONLY
 -- Find the smallest prime which, by replacing part of the number (not necessarily adjacent digits) with the same digit,
 --	is part of an eight prime value family.
 ;WITH ctePrimes AS (
-	SELECT A.prime as primeNumber, A.primeLength, A.primeString
-	FROM ( 	SELECT prime, LEN(prime) as primeLength, CAST(prime as varchar) as primeString
-			FROM primes	-- prime number table, mine was only populated w/primes < 3,000,000
-			WHERE prime > 1000) A
+    SELECT A.prime AS primeNumber, A.primeLength, A.primeString
+    FROM (
+        SELECT prime, LEN(prime) AS primeLength, CAST(prime AS varchar) AS primeString
+        FROM primes	-- prime number table, mine was only populated w/primes < 3,000,000
+        WHERE prime > 1000) AS A
 )
-, cteDupeyPrimes AS ( --return all primes w/at least one repeated digit, onerow for each repeated digit
-	SELECT p.primeNumber, p.primeString, p.primeLength, d.digit
-	FROM ctePrimes p
-	CROSS APPLY (SELECT SUBSTRING(p.primeString, p.primeLength, 1) as digit
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 1, 1)
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 2, 1)
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 3, 1)
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 4, 1)
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 5, 1)
-		UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 6, 1)
-		) d
-	WHERE d.digit != ''
-	GROUP BY p.primeNumber, p.primeString, p.primeLength, d.digit
-	HAVING COUNT(d.digit) > 1
+,cteDupeyPrimes AS ( --return all primes w/at least one repeated digit, onerow for each repeated digit
+    SELECT p.primeNumber, p.primeString, p.primeLength, d.digit
+    FROM ctePrimes AS p
+    CROSS APPLY (SELECT SUBSTRING(p.primeString, p.primeLength, 1) AS digit
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 1, 1)
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 2, 1)
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 3, 1)
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 4, 1)
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 5, 1)
+        UNION ALL SELECT SUBSTRING(p.primeString, p.primeLength - 6, 1)
+        ) d
+    WHERE d.digit != ''
+    GROUP BY p.primeNumber, p.primeString, p.primeLength, d.digit
+    HAVING COUNT(d.digit) > 1
 )
 ,cteDigits AS (  -- digits 0-9
-    SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 as replaceDigit
-    FROM (VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0)) as digits(d)
+    SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS replaceDigit
+    FROM (VALUES(0), (0), (0), (0), (0), (0), (0), (0), (0), (0)) AS digits(d)
 )
 ,cteCheck AS ( -- all families with 8 prime value members (where of course all are < 3,000,000 due to initial primes table)
-	SELECT A.primeNumber, A.cand, ROW_NUMBER() OVER (ORDER BY A.primeNumber) as rowNum
-	FROM
-	(	SELECT dp.primeNumber, dp.primeString, dp.digit, d.replaceDigit, REPLACE(dp.primeString, dp.digit
-			,CAST(d.replaceDigit as char(1))) as cand
-			,COUNT(dp.primeNumber) OVER (PARTITION BY dp.primeNumber, dp.digit) as familyCount
-		FROM cteDupeyPrimes dp
-		CROSS JOIN cteDigits d
-		WHERE EXISTS (SELECT p.primeNumber FROM ctePrimes p
-					WHERE p.primeLength = dp.primeLength
-					and p.primeNumber =
-						CAST(REPLACE(dp.primeString, dp.digit, CAST(d.replaceDigit as char(1))) as INT))
-	) A
-	WHERE familyCount = 8
+    SELECT A.primeNumber, A.cand, ROW_NUMBER() OVER (ORDER BY A.primeNumber) AS rowNum
+    FROM (	
+        SELECT dp.primeNumber, dp.primeString, dp.digit, d.replaceDigit, REPLACE(dp.primeString, dp.digit,
+            CAST(d.replaceDigit AS char(1))) AS cand,
+            COUNT(dp.primeNumber) OVER (PARTITION BY dp.primeNumber, dp.digit) AS familyCount
+        FROM cteDupeyPrimes AS dp
+        CROSS JOIN cteDigits AS d
+        WHERE EXISTS (
+                    SELECT p.primeNumber
+                    FROM ctePrimes AS p
+                    WHERE p.primeLength = dp.primeLength
+                    AND p.primeNumber = CAST(REPLACE(dp.primeString, dp.digit, CAST(d.replaceDigit AS char(1))) AS INT))
+    ) AS A
+    WHERE familyCount = 8
 )
-SELECT CASE WHEN rowNum = 1 THEN 'ANSWER: ' ELSE 'Family member: ' END as textKey, cand
+SELECT CASE WHEN rowNum = 1 THEN 'ANSWER: ' ELSE 'Family member: ' END AS textKey, cand
 FROM cteCheck
 WHERE rowNum <= 8
-
 
 
 --Problem 53		Combinatoric selections
@@ -242,22 +232,20 @@ WHERE rowNum <= 8
 -- as a theorum: n-C-r = n! / r!(n-r)!  where r <= n		... n!/r! * n!/(n-r)! ?
 --It is not until n = 23, that a value exceeds one-million: 23-C-10= 1144066.
 --How many, not necessarily distinct, values of  n-C-r, for 1 <= n <= 100, are greater than one-million?
-;WITH cteFact AS
-(
-	SELECT CAST(1 as float) as fact, 1 as Level
-	UNION ALL
-	SELECT  fact * CAST(Level + 1 as float), Level + 1 as Level
-	FROM cteFact f
-	WHERE f.Level < 100
+;WITH cteFact AS (
+    SELECT CAST(1 AS float) AS fact, 1 AS Level
+    UNION ALL
+    SELECT fact * CAST(Level + 1 AS float) AS fact, Level + 1 AS Level
+    FROM cteFact AS f
+    WHERE f.Level < 100
 )
-,cteCalc AS
-(
-	SELECT n.Level as N_number, r.Level as R_number, n.fact / (r.fact * d.nMinusRfact) as val
-	FROM cteFact n
-	CROSS JOIN cteFact r
-		OUTER APPLY (SELECT c.fact as nMinusRfact FROM cteFact c WHERE c.Level = (n.Level - r.Level)) d
-	WHERE r.Level <= n.Level
+,cteCalc AS (
+    SELECT n.Level AS N_number, r.Level AS R_number, n.fact / (r.fact * d.nMinusRfact) AS val
+    FROM cteFact AS n
+    CROSS JOIN cteFact AS r
+        OUTER APPLY (SELECT c.fact AS nMinusRfact FROM cteFact c WHERE c.Level = (n.Level - r.Level)) AS d
+    WHERE r.Level <= n.Level
 )
-SELECT COUNT(*) as Answer
+SELECT COUNT(*) AS Answer
 FROM cteCalc
 WHERE val > 1000000
