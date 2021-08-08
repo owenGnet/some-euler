@@ -3,9 +3,9 @@
 --Problem 1		Multiples of 3 and 5
 --If we list all the natural numbers below 10 that are multiples of 3 or 5, we get 3, 5, 6 and 9. The sum of these multiples is 23.
 --Find the sum of all the multiples of 3 or 5 below 1000.
-select SUM(number)
-from numbers
-where number < 1000 and (number % 3 = 0 or number % 5 = 0)
+SELECT SUM(number)
+FROM numbers
+WHERE number < 1000 AND (number % 3 = 0 OR number % 5 = 0)
 
 
 
@@ -14,24 +14,28 @@ where number < 1000 and (number % 3 = 0 or number % 5 = 0)
 -- By starting with 1 and 2, the first 10 terms will be:
 --1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...
 --By considering the terms in the Fibonacci sequence whose values do not exceed four million, find the sum of the even-valued terms.
-;with cteFib AS (
-	SELECT 1 as num1, 2 as num2--, 1 as Level
-	UNION ALL
-	SELECT f1.num1 + f1.num2 as num1, f1.num1 + f1.num2 + num2 as num2--, Level + 1 as Level
-	from ctefib f1
-	where f1.num2 < 4000000
+;WITH cteFib AS (
+    SELECT
+        1 AS num1,
+        2 AS num2--, 1 as Level
+    UNION ALL
+    SELECT
+        f1.num1 + f1.num2 AS num1,
+        f1.num1 + f1.num2 + f1.num2 AS num2--, Level + 1 as Level
+    FROM ctefib AS f1
+    WHERE f1.num2 < 4000000
 )
 --select * from cteFib
-select SUM(A.num)
-FROM
-( select num1 as num
-	from cteFib
-	where num1 % 2 = 0
-	UNION ALL
-	select num2
-	from cteFib
-	where num2 % 2 = 0 and num2 < 4000000
-)	A
+SELECT SUM(A.num)
+FROM (
+    SELECT num1 AS num
+    FROM cteFib
+    WHERE num1 % 2 = 0
+    UNION ALL
+    SELECT num2
+    FROM cteFib
+    WHERE num2 % 2 = 0 AND num2 < 4000000
+) AS A
 
 
 
@@ -39,34 +43,35 @@ FROM
 --The prime factors of 13195 are 5, 7, 13 and 29.
 --What is the largest prime factor of the number 600851475143 ?
 DECLARE @LargePrime NUMERIC(26,0) = 600851475143;
-;WITH cte_LargePrime AS
-(
-	SELECT p.prime
-	from primes p
-		CROSS APPLY (SELECT @LargePrime % p.prime as modu) as div
-	where p.prime < 999999 and modu = 0
+;WITH cteLargePrime AS (
+    SELECT p.prime
+    FROM primes AS p
+        CROSS APPLY (SELECT @LargePrime % p.prime AS modu) AS div
+    WHERE p.prime < 999999 AND modu = 0
 )
-select max(prime) from cte_LargePrime
+SELECT MAX(prime) FROM cteLargePrime
 
 
 
 --Problem 4		Largest palindrome product
 --A palindromic number reads the same both ways. The largest palindrome made from the product of two 2-digit numbers is 9009 = 91 × 99.
 --Find the largest palindrome made from the product of two 3-digit numbers.
-;with cteProds AS
-(
-	SELECT CAST(A.prod  as varchar(6)) as prod
-	FROM (
-		SELECT TOP 10000 prods.prod		--just assuming it will be in the top ten thousand
-		FROM numbers n1
-			CROSS APPLY (SELECT n1.number * n2.number as prod from Numbers n2 where number between 100 and 999) as prods
-		where n1.number between 100 and 999
-		order by prods.prod desc
-	) A
+;WITH cteProds AS (
+    SELECT CAST(A.prod AS VARCHAR(6)) AS prod
+    FROM (
+        SELECT TOP 10000 prods.prod	--just assuming it will be in the top ten thousand
+        FROM numbers AS n1
+            CROSS APPLY (SELECT n1.number * n2.number AS prod
+                         FROM Numbers n2 
+                         WHERE number BETWEEN 100 AND 999) AS prods
+        WHERE n1.number BETWEEN 100 AND 999
+        ORDER BY prods.prod DESC
+    ) AS A
 )
-select TOP 1 prod from cteProds
+SELECT TOP 1 prod
+FROM cteProds
 WHERE LEFT(prod, 3) = REVERSE(RIGHT(prod, 3)) -- top 10,000 products are all six characters long
-order by prod desc
+ORDER BY prod DESC
 
 
 
@@ -77,18 +82,20 @@ order by prod desc
 --	(& there are 3 or 4 other, higher, numbers under 1 billion that are divis by 1-20)
 CREATE TABLE #tmp
 (
-	id INT IDENTITY(2520, 2520) PRIMARY KEY,
-	num INT
+    id INT IDENTITY(2520, 2520) PRIMARY KEY,
+    num INT
 );
-insert into #tmp
-	select number from numbers
-	where number < 400000
+INSERT INTO #tmp
+    SELECT number FROM numbers
+    WHERE number < 400000
 
-select MIN(id) as Answer from #tmp
-	where id % 20 = 0 and id % 19 = 0 and id % 18 = 0 and id % 17 = 0 and id % 16 = 0 and id % 15 = 0 and id % 14 = 0
-		and id % 13 = 0 and id % 12 = 0 and id % 11 = 0
+SELECT MIN(id) AS answer 
+FROM #tmp
+WHERE id % 20 = 0 AND id % 19 = 0 AND id % 18 = 0 AND id % 17 = 0
+    AND id % 16 = 0 AND id % 15 = 0 AND id % 14 = 0
+    AND id % 13 = 0 AND id % 12 = 0 AND id % 11 = 0
 
-drop table #tmp
+DROP TABLE #tmp
 
 
 
@@ -99,20 +106,21 @@ drop table #tmp
 --	(1 + 2 + ... + 10)^2 = 55^2 = 3,025 3025
 --Hence the difference between the sum of the squares of the first ten natural numbers and the square of the sum is 3025 - 385 = 2640.
 --Find the difference between the sum of the squares of the first one hundred natural numbers and the square of the sum.
-select square(sum(n.Number))  - sum(square(n.number)) as answer
-from numbers n
-where n.number <= 100
+SELECT SQUARE(SUM(n.Number)) - SUM(SQUARE(n.number)) AS answer
+FROM numbers AS n
+WHERE n.number <= 100
 
 
 
 --Problem 7		10001st prime
 --By listing the first six prime numbers: 2, 3, 5, 7, 11, and 13, we can see that the 6th prime is 13.
 --What is the 10,001st prime number?
-SELECT prime
-FROM
-	(select prime, ROW_NUMBER() OVER (ORDER BY prime) as rwcnt
-	from primes) A
-where rwcnt = 10001
+SELECT A.prime
+FROM (
+    SELECT prime, ROW_NUMBER() OVER (ORDER BY prime) AS rwcnt
+    FROM primes
+) AS A
+WHERE rwcnt = 10001
 
 
 
@@ -145,40 +153,38 @@ DECLARE @BigNum varchar(1000) = '73167176531330624919225119674426574742355349194
  '05886116467109405077541002256983155200055935729725' +
  '71636269561882670428252483600823257530420752963450'
 
- ;with cteSubs AS
-(
-	select sub.part, n.Number as PartNo
-	from Numbers n
---	CROSS JOIN Numbers n
-		CROSS APPLY (SELECT SUBSTRING(@BigNum, n.Number, 13) as part) as sub
-	where n.Number <= len(@BigNum) and CHARINDEX('0',sub.part) = 0
+ --;
+ WITH cteSubs AS (
+    SELECT sub.part, n.Number AS PartNo
+    FROM Numbers AS n
+    --	CROSS JOIN Numbers n
+        CROSS APPLY (SELECT SUBSTRING(@BigNum, n.Number, 13) AS part) AS sub
+    WHERE n.Number <= LEN(@BigNum) AND CHARINDEX('0', sub.part) = 0
 )
---select * from cteSubs
-,cteDigits AS
-(
-	select part, digits.digit, n.Number as nthDigit
-	from cteSubs
-	CROSS JOIN Numbers n
-		CROSS APPLY (SELECT CAST(SUBSTRING(part, n.Number, 1) as BIGINT) as digit) as digits
-	where n.Number < 14
-	--	AND part = '1112172238311'
+--SELECT * FROM cteSubs
+,cteDigits AS (
+    SELECT part, digits.digit, n.Number AS nthDigit
+    FROM cteSubs
+    CROSS JOIN Numbers n
+        CROSS APPLY (SELECT CAST(SUBSTRING(part, n.Number, 1) AS BIGINT) AS digit) AS digits
+    WHERE n.Number < 14
+    --	AND part = '1112172238311'
 )
---select * from cteDigits order by part, nthDigit
+--SELECT * FROM cteDigits order by part, nthDigit
 ,cteRec AS
 (
-	select d.part, CAST(1 as BIGINT) as prevDigit, digit as currDigit, 1 as lvl
-	from cteDigits d
-	where nthDigit = 1
-	UNION ALL
-	select r.part, r.currDigit as prevDigit, d.digit * currDigit, lvl + 1 as lvl
-	from cteRec r
-	inner join cteDigits d on d.part = r.part
-	where nthDigit = lvl + 1 and nthDigit < 14
+    SELECT d.part, CAST(1 as BIGINT) as prevDigit, digit as currDigit, 1 AS lvl
+    FROM cteDigits d
+    WHERE nthDigit = 1
+    UNION ALL
+    SELECT r.part, r.currDigit as prevDigit, d.digit * currDigit, lvl + 1 AS lvl
+    FROM cteRec r
+    INNER JOIN cteDigits d ON d.part = r.part
+    WHERE nthDigit = lvl + 1 AND nthDigit < 14
 )
---select * from cteRec order by currDigit desc
-select max(currDigit) as answer
-from cteRec
-
+--SELECT * FROM cteRec ORDER BY currDigit DESC
+SELECT MAX(currDigit) AS answer
+FROM cteRec
 
 
 --Problem 9		Special Pythagorean triplet
@@ -188,26 +194,26 @@ from cteRec
 --There exists exactly one Pythagorean triplet for which a + b + c = 1000.
 --Find the product abc.
 -- * 500 would be max c^2 ie c <= 22 (22^2 = 529)
-SELECT A.a, A.b, A.c, A.a * A.b *  A.c as Answer
+SELECT A.a, A.b, A.c, A.a * A.b * A.c AS answer
 FROM (
-	select n1.number as a, n2.number as b, n3.number as c
-	from numbers n1
-	cross join numbers n2
-	cross join numbers n3
-	where n1.Number between 100 and 400 and n1.number <= n2.number
-		and n2.number between 100 and 400
-		and n3.number between 100 and 500 and n3.number > n1.number and n3.number > n2.number
-		and n1.number + n2.number + n3.number = 1000
-) A
-where  SQUARE(a) + SQUARE(b) = SQUARE(c)
+    SELECT n1.number AS a, n2.number AS b, n3.number AS c
+    FROM numbers AS n1
+    CROSS JOIN numbers AS n2
+    CROSS JOIN numbers AS n3
+    WHERE n1.Number BETWEEN 100 AND 400 AND n1.number <= n2.number
+        AND n2.number BETWEEN 100 AND 400
+        AND n3.number BETWEEN 100 AND 500 AND n3.number > n1.number AND n3.number > n2.number
+        AND n1.number + n2.number + n3.number = 1000
+) AS A
+WHERE SQUARE(A.a) + SQUARE(A.b) = SQUARE(A.c)
 
 
 
 --Problem 10		Summation of primes
 --The sum of the primes below 10 is 2 + 3 + 5 + 7 = 17.
 --Find the sum of all the primes below two million.
-select sum(CAST(prime as BIGINT)) as answer
-from primes
-where prime < 2000000
+SELECT SUM(CAST(prime AS BIGINT)) AS answer
+FROM primes
+WHERE prime < 2000000
 
 

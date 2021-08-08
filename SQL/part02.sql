@@ -31,135 +31,135 @@ VALUES
 (1,19,20),	(2,19,73),	(3,19,35),	(4,19,29),	(5,19,78),	(6,19,31),	(7,19,90),	(8,19,1),	(9,19,74),	(10,19,31),	(11,19,49),	(12,19,71),	(13,19,48),	(14,19,86),	(15,19,81),	(16,19,16),	(17,19,23),	(18,19,57),	(19,19,5),	(20,19,54),
 (1,20,1),	(2,20,70),	(3,20,54),	(4,20,71),	(5,20,83),	(6,20,51),	(7,20,54),	(8,20,69),	(9,20,16),	(10,20,92),	(11,20,33),	(12,20,48),	(13,20,61),	(14,20,43),	(15,20,52),	(16,20,1),	(17,20,89),	(18,20,19),	(19,20,67),	(20,20,48)
 --get the answer, including returning the highest product in each direction
-;With cteAll AS (
-	SELECT A.Src, A.TotalProd, RANK() OVER (PARTITION BY A.Src ORDER BY A.TotalProd desc) as SrcRank
-	FROM (
-		SELECT CHOOSE(prodtype, 'LowerDiagProds', 'UpperDiagProds', 'colProds', 'rowProds') as Src,
-		val *
-		(SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 1, -1, 1, 0) and colNum = colIndex.Number
-			+ CHOOSE(prodtype, 1, 1, 0, 1)) *
-		(SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 2, -2, 2, 0) and colNum = colIndex.Number
-			+ CHOOSE(prodtype, 2, 2, 0, 2)) *
-		(SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 3, -3, 3, 0) and colNum = colIndex.Number
-			+ CHOOSE(prodtype, 3, 3, 0, 3)) as TotalProd
-		FROM @Matrix
-			CROSS APPLY (SELECT Number FROM Numbers WHERE number between 1 and 20) colIndex
-			CROSS APPLY (SELECT Number FROM Numbers WHERE number between 1 and 20) rowIndex
-			--order of:  'LowerDiagProds', 'UpperDiagProds', 'colProds', 'rowProds'
-			CROSS JOIN (VALUES (1), (2),(3),(4)) prods(prodtype)
-		WHERE rowNum = rowIndex.Number and colNum = colIndex.Number
-	) A
+;WITH cteAll AS (
+    SELECT A.Src, A.TotalProd, RANK() OVER (PARTITION BY A.Src ORDER BY A.TotalProd DESC) AS SrcRank
+    FROM (
+        SELECT CHOOSE(prodtype, 'LowerDiagProds', 'UpperDiagProds', 'colProds', 'rowProds') AS Src,
+            val *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 1, -1, 1, 0) AND colNum = colIndex.Number
+                + CHOOSE(prodtype, 1, 1, 0, 1))
+            * (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 2, -2, 2, 0) AND colNum = colIndex.Number
+                + CHOOSE(prodtype, 2, 2, 0, 2))
+            * (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + CHOOSE(prodtype, 3, -3, 3, 0) AND colNum = colIndex.Number
+                + CHOOSE(prodtype, 3, 3, 0, 3)) AS TotalProd
+        FROM @Matrix
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number between 1 and 20) AS colIndex
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number between 1 and 20) AS rowIndex
+            --order of:  'LowerDiagProds', 'UpperDiagProds', 'colProds', 'rowProds'
+            CROSS JOIN (VALUES (1), (2), (3), (4)) prods(prodtype)
+        WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number
+    ) AS A
 )
-SELECT Src, TotalProd, MAX(TotalProd) OVER () as Answer
+SELECT Src, TotalProd, MAX(TotalProd) OVER () AS answer
 FROM cteAll
 WHERE SrcRank = 1
-ORDER BY TotalProd desc
+ORDER BY TotalProd DESC
 
 --#pass #2
-;With cteAll AS (
-	SELECT MAX(A.LowerDiagProds) as LowerLeftDiagMax, MAX(A.UpperDiagProds) as UpperLeftDiagMax,
-		MAX(A.colProds) as colMax, MAX(A.rowProds) as rowMax
-	FROM (
-		select val *
-		(select val from @Matrix where rowNum = rowIndex.Number + 1 and colNum = colIndex.Number + 1) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 2 and colNum = colIndex.Number + 2) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 3 and colNum = colIndex.Number + 3) as LowerDiagProds,
-		val *
-		(select val from @Matrix where rowNum = rowIndex.Number - 1 and colNum = colIndex.Number + 1) *
-		(select val from @Matrix where rowNum = rowIndex.Number - 2  and colNum = colIndex.Number + 2) *
-		(select val from @Matrix where rowNum = rowIndex.Number - 3 and colNum = colIndex.Number + 3) as UpperDiagProds,
-		val *
-		(select val from @Matrix where rowNum = rowIndex.Number + 1 and colNum = colIndex.Number) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 2 and colNum = colIndex.Number) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 3 and colNum = colIndex.Number) as colProds,
-		val *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+1) *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+2) *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+3) as rowProds
-		from @Matrix
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) colIndex
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) rowIndex
-		where rowNum = rowIndex.Number and colNum = colIndex.Number
-	) A
+;WITH cteAll AS (
+    SELECT MAX(A.LowerDiagProds) AS LowerLeftDiagMax, MAX(A.UpperDiagProds) AS UpperLeftDiagMax,
+        MAX(A.colProds) AS colMax, MAX(A.rowProds) AS rowMax
+    FROM (
+        SELECT val *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 1 AND colNum = colIndex.Number + 1) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 2 AND colNum = colIndex.Number + 2) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 3 AND colNum = colIndex.Number + 3) AS LowerDiagProds,
+        val *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number - 1 AND colNum = colIndex.Number + 1) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number - 2 AND colNum = colIndex.Number + 2) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number - 3 AND colNum = colIndex.Number + 3) AS UpperDiagProds,
+        val *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 1 AND colNum = colIndex.Number) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 2 AND colNum = colIndex.Number) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 3 AND colNum = colIndex.Number) AS colProds,
+        val *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 1) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 2) *
+            (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 3) AS rowProds
+        FROM @Matrix
+            CROSS APPLY (SELECT Number from Numbers WHERE number BETWEEN 1 AND 20) colIndex
+            CROSS APPLY (SELECT Number from Numbers WHERE number BETWEEN 1 AND 20) rowIndex
+        WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number
+    ) AS A
 )
-select *
-from cteAll
+SELECT *
+FROM cteAll
 
 --#Pass #1
-;With cteDiag1 AS (
-	SELECT MAX(A.val1*A.val2*A.val3*A.val4) as maxVal
-	FROM (
-		select val as val1,
-		(select val from @Matrix where rowNum = rowIndex.Number + 1 and colNum = colIndex.Number+1) as Val2,
-		(select val from @Matrix where rowNum = rowIndex.Number + 2 and colNum = colIndex.Number+2) as Val3,
-		(select val from @Matrix where rowNum = rowIndex.Number + 3 and colNum = colIndex.Number+3) as Val4
-		,rowIndex.Number as RowN, colIndex.Number as ColN
-		from @Matrix
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) colIndex
-			CROSS APPLY (Select TOP (20) Number from Numbers where number between 1 and 20 order by number desc) rowIndex
-		where rowNum = rowIndex.Number and colNum = colIndex.Number
-	) A
+WITH cteDiag1 AS (
+    SELECT MAX(A.val1 * A.val2 * A.val3 * A.val4) AS maxVal
+    FROM (
+        SELECT val AS val1,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 1 AND colNum = colIndex.Number + 1) AS Val2,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 2 AND colNum = colIndex.Number + 2) AS Val3,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 3 AND colNum = colIndex.Number + 3) AS Val4,
+        rowIndex.Number AS RowN, colIndex.Number AS ColN
+        FROM @Matrix
+            CROSS APPLY (SELECT number FROM Numbers WHERE number BETWEEN 1 AND 20) colIndex
+            CROSS APPLY (SELECT TOP (20) number FROM Numbers WHERE number BETWEEN 1 AND 20 ORDER BY number DESC) rowIndex
+        WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number
+    ) AS A
 )
 ,cteDiag2 AS (
-	SELECT MAX(A.val1*A.val2*A.val3*A.val4) as maxVal
-	FROM (
-		select val as val1,
-		(select val from @Matrix where rowNum = rowIndex.Number + 2 and colNum = colIndex.Number+1) as Val2,
-		(select val from @Matrix where rowNum = rowIndex.Number + 1 and colNum = colIndex.Number+2) as Val3,
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+3) as Val4
-		from @Matrix
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) colIndex
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) rowIndex
-		where rowNum = rowIndex.Number + 3 and colNum = colIndex.Number
-	) A
+    SELECT MAX(A.val1 * A.val2 * A.val3 * A.val4) AS maxVal
+    FROM (
+        SELECT val AS val1,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 2 AND colNum = colIndex.Number + 1) AS Val2,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 1 AND colNum = colIndex.Number + 2) AS Val3,
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 3) AS Val4
+        FROM @Matrix
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) colIndex
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) rowIndex
+        WHERE rowNum = rowIndex.Number + 3 AND colNum = colIndex.Number
+    ) AS A
 )
---select * from cteDiag2
+SELECT * FROM cteDiag2
 ,cteCol AS (
-	SELECT MAX(colProds) as maxVal
-	FROM (
-		select val *
-		(select val from @Matrix where rowNum = rowIndex.Number + 1 and colNum = colIndex.Number) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 2 and colNum = colIndex.Number) *
-		(select val from @Matrix where rowNum = rowIndex.Number + 3 and colNum = colIndex.Number) as colProds
-		from @Matrix
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) colIndex
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) rowIndex
-		where rowNum = rowIndex.Number and colNum = colIndex.Number
-	) A
+    SELECT MAX(colProds) AS maxVal
+    FROM (
+        SELECT val *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 1 AND colNum = colIndex.Number) *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 2 AND colNum = colIndex.Number) *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number + 3 AND colNum = colIndex.Number) AS colProds
+        FROM @Matrix
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) colIndex
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) rowIndex
+        WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number
+    ) A
 )
 ,cteRow AS (
-SELECT MAX(rowProds) as maxVal
-	FROM (
-		select val *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+1) *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+2) *
-		(select val from @Matrix where rowNum = rowIndex.Number and colNum = colIndex.Number+3) as rowProds
-		from @Matrix
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) colIndex
-			CROSS APPLY (Select Number from Numbers where number between 1 and 20) rowIndex
-		where rowNum = rowIndex.Number and colNum = colIndex.Number
-	) A
+SELECT MAX(rowProds) AS maxVal
+    FROM (
+        SELECT val *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 1) *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 2) *
+        (SELECT val FROM @Matrix WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number + 3) AS rowProds
+        FROM @Matrix
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) colIndex
+            CROSS APPLY (SELECT Number FROM Numbers WHERE number BETWEEN 1 AND 20) rowIndex
+        WHERE rowNum = rowIndex.Number AND colNum = colIndex.Number
+    ) A
 )
 ,cteAgg AS(
-	SELECT maxVal from cteDiag1
-	UNION ALL
-	SELECT maxVal from cteDiag2
-	UNION ALL
-	SELECT maxVal from cteCol
-	UNION ALL
-	SELECT maxVal from cteRow
+    SELECT maxVal FROM cteDiag1
+    UNION ALL
+    SELECT maxVal FROM cteDiag2
+    UNION ALL
+    SELECT maxVal FROM cteCol
+    UNION ALL
+    SELECT maxVal FROM cteRow
 )
-SELECT MAX(maxVal) as P11answer from cteAgg
+SELECT MAX(maxVal) AS P11answer FROM cteAgg
 
 --# a PIVOT on the grid, which didn't really help anything but looked pretty
-select [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20]
+SELECT [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20]
 FROM (
-		SELECT Val, ColNum, RowNum
-		from @Matrix) m
-PIVOT
-(	MAX(Val)
-	For ColNum IN
-	([1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20])
+    SELECT Val, ColNum, RowNum
+    FROM @Matrix
+) AS m
+PIVOT (
+    MAX(Val) FOR ColNum IN
+    ([1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20])
 ) AS pvt
 
 
@@ -178,32 +178,31 @@ PIVOT
 --28: 1,2,4,7,14,28
 --We can see that 28 is the first triangle number to have over five divisors.
 --What is the value of the first triangle number to have over five hundred divisors?
-;with cteTri AS
-(
-	SELECT Number - 1 as triNum, 1 as Level
-	FROM Numbers
-	WHERE Number = 1
-	UNION ALL
-	SELECT triNum + Level, t.Level + 1 as Level
-	FROM cteTri t
-	where t.triNum < 500000000	--43 seconds, of course 100000000 would be good enough to get answer & a lot quicker
+;WITH cteTri AS (
+    SELECT Number - 1 AS triNum, 1 AS Level
+    FROM Numbers
+    WHERE Number = 1
+    UNION ALL
+    SELECT triNum + Level, t.Level + 1 AS Level
+    FROM cteTri AS t
+    WHERE t.triNum < 500000000	--43 seconds, of course 100000000 would be good enough to get answer & a lot quicker
 )
-	SELECT triNum, fact.ApproxFactorCount, MIN(triNum) OVER () as Answer
-	FROM cteTri t
-	CROSS APPLY (SELECT COUNT(n2.Number) * 2 as ApproxFactorCount from Numbers n2
-			WHERE n2.Number < SQRT(t.triNum) + 1 and t.triNum % n2.Number = 0) fact
-	WHERE fact.ApproxFactorCount > 500
-	OPTION (MAXRECURSION 0)
+SELECT triNum, fact.ApproxFactorCount, MIN(triNum) OVER () AS Answer
+FROM cteTri AS t
+CROSS APPLY (SELECT COUNT(n2.Number) * 2 AS ApproxFactorCount FROM Numbers AS n2
+        WHERE n2.Number < SQRT(t.triNum) + 1 AND t.triNum % n2.Number = 0) AS fact
+WHERE fact.ApproxFactorCount > 500
+OPTION (MAXRECURSION 0)
 ----earlier pass, a more accurate read on the FactorCount
-	--SELECT triNum, COUNT(fact.Factor) as factorCount
-	--FROM cteTri t
-	--CROSS APPLY (SELECT Number as Factor from Numbers WHERE Number < SQRT(t.triNum) + 1 and t.triNum % Number = 0
-	--			UNION
-	--			SELECT t.triNum/Number from Numbers WHERE Number < SQRT(t.triNum) + 1 and t.triNum % Number = 0
-	--			) fact
-	--GROUP BY triNum
-	--HAVING COUNT(fact.Factor) > 500
-	--OPTION (MAXRECURSION 0)
+    --SELECT triNum, COUNT(fact.Factor) AS factorCount
+    --FROM cteTri t
+    --CROSS APPLY (SELECT Number as Factor from Numbers WHERE Number < SQRT(t.triNum) + 1 AND t.triNum % Number = 0
+    --			UNION
+    --			SELECT t.triNum/Number from Numbers WHERE Number < SQRT(t.triNum) + 1 AND t.triNum % Number = 0
+    --			) fact
+    --GROUP BY triNum
+    --HAVING COUNT(fact.Factor) > 500
+    --OPTION (MAXRECURSION 0)
 
 
 
@@ -212,8 +211,8 @@ PIVOT
 DECLARE @Nums TABLE (num char(50))
 INSERT INTO @Nums
 VALUES
-('37107287533902102798797998220837590246510135740250'),('46376937677490009712648124896970078050417018260538'),
-('74324986199524741059474233309513058123726617309629'),('91942213363574161572522430563301811072406154908250')
+('37107287533902102798797998220837590246510135740250'), ('46376937677490009712648124896970078050417018260538'),
+('74324986199524741059474233309513058123726617309629'), ('91942213363574161572522430563301811072406154908250')
 --, and another 96 numbers, see orig problem page
 SELECT LEFT(SUM(CAST(LEFT(num, 15) AS BIGINT)), 10) as Answer
 FROM @Nums
@@ -235,163 +234,155 @@ IF OBJECT_ID('tempdb..#temp') IS NOT NULL DROP TABLE #temp
 GO
 CREATE Table #temp(coll BIGINT, LevelsRemaining INT) --, PRIMARY KEY (coll, LevelsRemaining))
 
-DECLARE @c1_Beg INT =  10000,  @c1_End  INT = 20000
-DECLARE @c2_Beg INT =  90000,  @c2_End  INT = 100000
+DECLARE @c1_Beg INT =  10000, @c1_End  INT = 20000
+DECLARE @c2_Beg INT =  90000, @c2_End  INT = 100000
 DECLARE @c2a_Beg INT = 100000, @c2a_End INT = 110000
-DECLARE @c2b_Beg INT = 200000,  @c2b_End INT = 210000
-DECLARE @c3_Beg INT = 500000
-DECLARE @c3_End INT = 1000000
+DECLARE @c2b_Beg INT = 200000, @c2b_End INT = 210000
+DECLARE @c3_Beg INT = 500000, @c3_End INT = 1000000
 
-;WITH cteColl AS
-(
-	SELECT nums.Number AS n, CAST(nums.Number as BIGINT) as coll, 2  as Level --final Level will now = the Collatz count
-	FROM Numbers nums
-	WHERE nums.Number
-		 between @c1_Beg and @c1_End 	--10,000 in 16 seconds, 7 seconds w/only testing odds
+;WITH cteColl AS (
+    SELECT nums.Number AS n, CAST(nums.Number AS BIGINT) AS coll, 2 AS Level --final Level will now = the Collatz count
+    FROM Numbers AS nums
+    WHERE nums.Number BETWEEN @c1_Beg AND @c1_End  --10,000 in 16 seconds, 7 seconds w/only testing odds
 UNION ALL
-	SELECT n , CASE WHEN c.coll % 2 = 0 THEN  coll / 2
-					ELSE 3 * c.coll + 1 END as coll
-			,Level + 1 as Level
-	FROM cteColl c
-	WHERE coll > 2
+    SELECT n, CASE WHEN c.coll % 2 = 0 THEN  c.coll / 2
+                    ELSE 3 * c.coll + 1 END AS coll,
+            Level + 1 AS Level
+    FROM cteColl AS c
+    WHERE coll > 2
 )
 INSERT INTO #temp
-	SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level as LevelsRemaining
-	FROM cteColl
-	OPTION (MAXRECURSION 0)
+    SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level AS LevelsRemaining
+    FROM cteColl
+    OPTION (MAXRECURSION 0)
 
-;WITH
-cteColl2 AS
-(
-	SELECT nums.Number AS n, CAST(nums.Number as BIGINT) as coll, 2  as Level
-		,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) as RemainingLevels
-	FROM Numbers nums
-	WHERE nums.Number
-	between @c2_beg and @c2_End
+;WITH cteColl2 AS (
+    SELECT nums.Number AS n, CAST(nums.Number AS BIGINT) AS coll, 2  AS Level,
+        (SELECT nu.LevelsRemaining FROM #temp AS nu WHERE nu.coll = nums.Number) AS RemainingLevels
+    FROM Numbers AS nums
+    WHERE nums.Number
+    BETWEEN @c2_beg AND @c2_End
 UNION ALL
-	SELECT n , CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
-					WHEN c.coll % 2 = 0 THEN  c.coll / 2
-					ELSE 3 * c.coll + 1 END as coll
-			, ISNULL(RemainingLevels, 0) + 1 + Level as Level
-			,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = CASE WHEN c.coll % 2 = 0
-				THEN c.coll / 2 ELSE 3 * c.coll + 1 END
-			) as RemainingLevels
-	FROM cteColl2 c
-	WHERE c.coll > 2
+    SELECT n , CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
+                    WHEN c.coll % 2 = 0 THEN  c.coll / 2
+                    ELSE 3 * c.coll + 1 END AS coll,
+            ISNULL(RemainingLevels, 0) + 1 + Level AS Level,
+            (SELECT nu.LevelsRemaining FROM #temp nu 
+                WHERE nu.coll = CASE WHEN c.coll % 2 = 0
+                                    THEN c.coll / 2 
+                                    ELSE 3 * c.coll + 1 END
+            ) AS RemainingLevels
+    FROM cteColl2 c
+    WHERE c.coll > 2
 )
 INSERT INTO #temp
 SELECT A.coll, A.LevelsRemaining
-FROM (	--need subquery so that the window partition operates on the full n set
-	SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1  as LevelsRemaining, RemainingLevels
-	FROM cteColl2 ) A
-	WHERE A.RemainingLevels IS NULL
-	OPTION (MAXRECURSION 0)
+FROM (--need subquery so that the window partition operates on the full n set
+    SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1  AS LevelsRemaining, RemainingLevels
+    FROM cteColl2 ) AS A
+    WHERE A.RemainingLevels IS NULL
+    OPTION (MAXRECURSION 0)
 
 ;WITH
-cteColl2A AS
-(
-	SELECT nums.Number AS n, CAST(nums.Number as BIGINT) as coll, 2  as Level --final Level will now = the Collatz count
-		,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) as RemainingLevels
-	FROM Numbers nums
-	WHERE nums.Number
-		between @c2a_beg and @c2a_End
+cteColl2A AS (
+    SELECT nums.Number AS n, CAST(nums.Number AS BIGINT) AS coll, 2 AS Level, --final Level will now = the Collatz count
+        (SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) AS RemainingLevels
+    FROM Numbers AS nums
+    WHERE nums.Number
+        BETWEEN @c2a_beg AND @c2a_End
 UNION ALL
-	SELECT n , CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
-					WHEN c.coll % 2 = 0 THEN  c.coll / 2
-					ELSE 3 * c.coll + 1 END as coll
-			, ISNULL(RemainingLevels, 0) + 1 + Level as Level
-			,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = CASE WHEN c.coll % 2 = 0
-				THEN c.coll / 2 ELSE 3 * c.coll + 1 END
-			) as RemainingLevels
-	FROM cteColl2A c
-	WHERE c.coll > 2
+    SELECT n, CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
+                    WHEN c.coll % 2 = 0 THEN c.coll / 2
+                    ELSE 3 * c.coll + 1 END AS coll,
+            ISNULL(RemainingLevels, 0) + 1 + Level AS Level,
+            (SELECT nu.LevelsRemaining FROM #temp nu 
+             WHERE nu.coll = CASE WHEN c.coll % 2 = 0
+                                THEN c.coll / 2
+                                ELSE 3 * c.coll + 1 END
+            ) AS RemainingLevels
+    FROM cteColl2A AS c
+    WHERE c.coll > 2
 )
 INSERT INTO #temp
 SELECT A.coll, A.LevelsRemaining
-FROM (	--need subquery so that the window partition operates on the full n set
-	SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1 as LevelsRemaining, RemainingLevels
-	FROM cteColl2A ) A
-	WHERE A.RemainingLevels IS NULL
-	OPTION (MAXRECURSION 0)
+FROM ( --need subquery so that the window partition operates on the full n set
+    SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1 AS LevelsRemaining, RemainingLevels
+    FROM cteColl2A ) AS A
+    WHERE A.RemainingLevels IS NULL
+    OPTION (MAXRECURSION 0)
 
-;WITH
-cteColl2B AS
-(
-	SELECT nums.Number AS n, CAST(nums.Number as BIGINT) as coll, 2  as Level
-		,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) as RemainingLevels
-	FROM Numbers nums
-	WHERE nums.Number
-	between @c2b_beg and @c2b_End
+;WITH cteColl2B AS (
+    SELECT nums.Number AS n, CAST(nums.Number AS BIGINT) AS coll, 2 AS Level,
+        (SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) AS RemainingLevels
+    FROM Numbers AS nums
+    WHERE nums.Number
+    BETWEEN @c2b_beg AND @c2b_End
 UNION ALL
-	SELECT n , CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
-					WHEN c.coll % 2 = 0 THEN  c.coll / 2
-					ELSE 3 * c.coll + 1 END as coll
-			, ISNULL(RemainingLevels, 0) + 1 + Level as Level
-			,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = CASE WHEN c.coll % 2 = 0
-				THEN c.coll / 2 ELSE 3 * c.coll + 1 END
-			) as RemainingLevels
-	FROM cteColl2B c
-	WHERE c.coll > 2
+    SELECT n, CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
+                    WHEN c.coll % 2 = 0 THEN c.coll / 2
+                    ELSE 3 * c.coll + 1 END AS coll,
+            ISNULL(RemainingLevels, 0) + 1 + Level AS Level,
+            (SELECT nu.LevelsRemaining FROM #temp nu 
+             WHERE nu.coll = CASE WHEN c.coll % 2 = 0
+                                THEN c.coll / 2
+                                ELSE 3 * c.coll + 1 END
+            ) AS RemainingLevels
+    FROM cteColl2B AS c
+    WHERE c.coll > 2
 )
 INSERT INTO #temp
 SELECT A.coll, A.LevelsRemaining
-FROM (	--need subquery so that the window partition operates on the full n set
-	SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1 as LevelsRemaining, RemainingLevels
-	FROM cteColl2B ) A
-	WHERE A.RemainingLevels IS NULL
-	OPTION (MAXRECURSION 0)
+FROM ( --need subquery so that the window partition operates on the full n set
+    SELECT DISTINCT coll, MAX(Level) OVER (PARTITION BY n) - Level - 1 AS LevelsRemaining, RemainingLevels
+    FROM cteColl2B ) AS A
+    WHERE A.RemainingLevels IS NULL
+    OPTION (MAXRECURSION 0)
 
-;WITH
-cteColl3 AS
+;WITH cteColl3 AS
 (
-	SELECT nums.Number AS n, CAST(nums.Number as BIGINT) as coll, 2  as Level --final Level will now = the Collatz count
-		,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) as RemainingLevels
-	FROM Numbers nums
-	WHERE nums.Number
-		between @c3_beg and @c3_End and nums.Number % 2 != 0
-	OR nums.Number = 13
+    SELECT nums.Number AS n, CAST(nums.Number AS BIGINT) AS coll, 2 AS Level, --final Level will now = the Collatz count
+        (SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = nums.Number) AS RemainingLevels
+    FROM Numbers nums
+    WHERE nums.Number BETWEEN @c3_beg AND @c3_End AND nums.Number % 2 != 0 OR nums.Number = 13
 UNION ALL
-	SELECT n , CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
-					WHEN c.coll % 2 = 0 THEN  c.coll / 2
-					ELSE 3 * c.coll + 1 END as coll
-			, ISNULL(RemainingLevels - 1, 0) + 1 + Level  as Level
-			,(SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = CASE WHEN c.coll % 2 = 0
-				THEN c.coll / 2 ELSE 3 * c.coll + 1 END
-			) as RemainingLevels
-	FROM cteColl3 c
-	WHERE c.coll > 2
+    SELECT n, CASE WHEN ISNULL(RemainingLevels, 0) != 0 THEN 2
+                    WHEN c.coll % 2 = 0 THEN c.coll / 2
+                    ELSE 3 * c.coll + 1 END AS coll,
+            ISNULL(RemainingLevels - 1, 0) + 1 + Level AS Level,
+            (SELECT nu.LevelsRemaining FROM #temp nu WHERE nu.coll = CASE WHEN c.coll % 2 = 0
+                THEN c.coll / 2 ELSE 3 * c.coll + 1 END
+            ) AS RemainingLevels
+    FROM cteColl3 AS c
+    WHERE c.coll > 2
 )
-
-select TOP 1 c.*
-from  cteColl3 c
-order by Level desc, c.n
+SELECT TOP 1 c.*
+FROM cteColl3 c
+ORDER BY Level DESC, c.n
 OPTION (MAXRECURSION 0)
 
 DROP TABLE #temp
 
---end of Problem 14
-
+-- end of Problem 14
 
 
 --Problem 15		Lattice paths
 --Starting in the top left corner of a 2×2 grid, and only being able to move to the right and down,
 --there are exactly 6 routes to the bottom right corner.
 --How many such routes are there through a 20×20 grid?
-;WITH cteFactorial AS
-(
-	SELECT 1 as num1, CAST(1 as float) as factorial
-	UNION ALL
-	SELECT cte.num1 + 1, (cte.num1 + 1) * cte.factorial
-	FROM cteFactorial cte
-	WHERE cte.num1 < 40
+;WITH cteFactorial AS (
+    SELECT 1 AS num1, CAST(1 AS float) AS factorial
+    UNION ALL
+    SELECT cte.num1 + 1, (cte.num1 + 1) * cte.factorial
+    FROM cteFactorial AS cte
+    WHERE cte.num1 < 40
 )
-SELECT dbl.factorial / (POWER(sngl.factorial, 2)) as Paths
+SELECT dbl.factorial / (POWER(sngl.factorial, 2)) AS Paths
 --SELECT Number, sngl.factorial as NumFact, dbl.factorial as TwoTimesNumFact, dbl.factorial  as numerator,
---		POWER(sngl.factorial, 2) as denominator, dbl.factorial / (POWER(sngl.factorial, 2)) as Paths
-FROM Numbers
-INNER JOIN cteFactorial sngl on sngl.num1 = Number
-INNER JOIN cteFactorial dbl on dbl.num1 = (Number * 2)
-WHERE Number = 20
+--  POWER(sngl.factorial, 2) as denominator, dbl.factorial / (POWER(sngl.factorial, 2)) as Paths
+FROM Numbers AS N
+INNER JOIN cteFactorial AS sngl ON sngl.num1 = N.Number
+INNER JOIN cteFactorial AS dbl ON dbl.num1 = (N.Number * 2)
+WHERE N.Number = 20
 
 
 
@@ -400,31 +391,29 @@ WHERE Number = 20
 --What is the sum of the digits of the number 2^1000?
 --OCG Note: doing mathematically first in cteLowSquares to max saves a second vs. doing everything via Function = fnSquareProblem16
 DECLARE @Num VARCHAR(MAX)
-;WITH cteLowSquares AS
-(
-	SELECT CAST(2 as DECIMAL(38,0)) as val, 1 as pwr
-	UNION ALL
-	SELECT val * 2, pwr + 1 as pwr
-	FROM cteLowSquares
-	WHERE pwr < 126
+;WITH cteLowSquares AS (
+    SELECT CAST(2 AS DECIMAL(38,0)) AS val, 1 AS pwr
+    UNION ALL
+    SELECT val * 2 AS val, pwr + 1 AS pwr
+    FROM cteLowSquares
+    WHERE pwr < 126
 )
-,cteSquares AS
-(
-	SELECT CAST(MAX(val) AS VARCHAR(MAX)) as Num, MAX(pwr) as Level
-	FROM cteLowSquares
-	UNION ALL
-	SELECT dbo.fnSquareProblem16(Num), Level + 1
-	FROM cteSquares
-	WHERE Level < 1000
+,cteSquares AS (
+    SELECT CAST(MAX(val) AS VARCHAR(MAX)) AS Num, MAX(pwr) AS Level
+    FROM cteLowSquares
+    UNION ALL
+    SELECT dbo.fnSquareProblem16(Num), Level + 1
+    FROM cteSquares
+    WHERE Level < 1000
 )
 SELECT @Num = Num
 FROM cteSquares
 WHERE Level = 1000
 OPTION (MAXRECURSION 0)
 
-SELECT SUM(c.digit) as Total
+SELECT SUM(c.digit) AS Total
 FROM Numbers
-	CROSS APPLY (SELECT CAST(SUBSTRING(@Num, Number, 1) as INT) as digit) as c
+    CROSS APPLY (SELECT CAST(SUBSTRING(@Num, Number, 1) AS INT) AS digit) AS c
 WHERE Number <= LEN(@Num)
 
 ----- this one requires a function
@@ -435,37 +424,36 @@ WHERE Number <= LEN(@Num)
 
 		DECLARE @ReturnValue VARCHAR(MAX)
 
-		;WITH cteDigits AS
-		(
-			SELECT c.digit, c.digit + c.digit as summed, LEN(c.digit + c.digit) as lenSummed, Number -1 as digitIndex
-				,LEN(@Num) - 1 as upperBound
-			FROM Numbers
-				CROSS APPLY (SELECT (CAST(SUBSTRING(@Num, LEN(@Num) - Number + 1, 1) as INT)) as digit) as c
-			WHERE Number <= LEN(@Num)
-		)
-		,cteCalc AS
-		(
-			SELECT c.digit as currDigit, c.summed as currSummed, p.digit as prevDigit, p.summed as prevSummed
-				,c.digit + ISNULL(p.digit, 0) currPlusPrevDigit
-				,CAST(RIGHT(CAST(c.summed as varchar(2)), 1) AS INT)
-					+ CASE
-						WHEN c.digitIndex = 0 AND c.lenSummed = 2 AND c.upperBound = 0 THEN 10
-						WHEN c.digitIndex = c.upperBound AND c.lenSummed = 1 and p.lenSummed = 2 THEN 1
-						WHEN c.digitIndex = c.upperBound AND c.lenSummed = 2 AND p.lenSummed = 2 THEN 11
-						WHEN c.digitIndex = c.upperBound AND c.lenSummed = 2 THEN 10
-						WHEN p.lenSummed = 2 THEN 1
-						ELSE 0 END  as newDigit
-				,c.digitIndex as currDigitIndex
-				, c.upperBound
-			FROM cteDigits c
-			LEFT JOIN cteDigits p on p.digitIndex + 1 = c.digitIndex
-		)
-		SELECT @ReturnValue = (SELECT
-			 CAST(newDigit as varchar(2))
-				FROM cteCalc
-				ORDER by currDigitIndex desc
-				FOR XML PATH('') )
-
+        ;WITH cteDigits AS (
+            SELECT c.digit, c.digit + c.digit AS summed, LEN(c.digit + c.digit) AS lenSummed, Number -1 AS digitIndex,
+                LEN(@Num) - 1 AS upperBound
+            FROM Numbers
+                CROSS APPLY (SELECT (CAST(SUBSTRING(@Num, LEN(@Num) - Number + 1, 1) AS INT)) AS digit) AS c
+            WHERE Number <= LEN(@Num)
+        )
+        ,cteCalc AS (
+            SELECT c.digit AS currDigit, c.summed AS currSummed, p.digit AS prevDigit, p.summed AS prevSummed,
+                c.digit + ISNULL(p.digit, 0) currPlusPrevDigit,
+                CAST(RIGHT(CAST(c.summed AS varchar(2)), 1) AS INT)
+                    + CASE
+                        WHEN c.digitIndex = 0 AND c.lenSummed = 2 AND c.upperBound = 0 THEN 10
+                        WHEN c.digitIndex = c.upperBound AND c.lenSummed = 1 and p.lenSummed = 2 THEN 1
+                        WHEN c.digitIndex = c.upperBound AND c.lenSummed = 2 AND p.lenSummed = 2 THEN 11
+                        WHEN c.digitIndex = c.upperBound AND c.lenSummed = 2 THEN 10
+                        WHEN p.lenSummed = 2 THEN 1
+                        ELSE 0 END AS newDigit,
+                c.digitIndex AS currDigitIndex,
+                c.upperBound
+            FROM cteDigits c
+            LEFT JOIN cteDigits p on p.digitIndex + 1 = c.digitIndex
+        )
+        SELECT @ReturnValue = (
+                SELECT
+                CAST(newDigit AS varchar(2))
+                FROM cteCalc
+                ORDER by currDigitIndex desc
+                FOR XML PATH('')
+        )
 		RETURN @ReturnValue
 
 		END;
@@ -482,43 +470,43 @@ WHERE Number <= LEN(@Num)
 --	and 115 (one hundred and fifteen) contains 20 letters.
 --	The use of "and" when writing out numbers is in compliance with British usage.
 --OCG Note: almost entirely unreadable but it gets the answer
-;WITH cte AS
-(
-	SELECT Number, ca.isHundreds, ca.TrueNumber, ca.NumLength, ca.NumLengthHundreds, ca.Base,
-		SUM(ca.NumLength + ca.NumLengthHundreds) OVER (ORDER BY Number) as RunSummed,
-		SUM(ca.NumLength + ca.NumLengthHundreds) OVER () as Summed
-	FROM Numbers
-		CROSS APPLY (
-		SELECT A.Base, IsHundreds,TrueNumber,
-		CASE WHEN IsHundreds = 1 THEN
-			CASE WHEN TrueNumber % 100 = 0 THEN CHOOSE(TrueNumber/100, 10,10,12,11,11,10,12,12,11)
-				ELSE CHOOSE(CAST(LEFT(NumberString,1) as INT), 3,3,5,4,4,3,5,5,4) + 10 --hundredand
-				END
-			ELSE 0
-			END as NumLengthHundreds,
-		CASE WHEN TrueNumber = 1000 THEN 11
-			WHEN Number < 10 THEN ISNULL(CHOOSE(Number, 3,3,5,4,4,3,5,5,4),0)
-			WHEN Number BETWEEN 11 and 19 THEN CHOOSE(Number-10, 6,6,8,8,7,7,9,8,8)
-			--WHEN Number = 1000 THEN 11
-			WHEN  Number % 10 = 0 AND Number < 100 THEN CHOOSE(Number/10, 3,6,6,5,5,5,7,6,6)
-			--handle 21-29,31-39 etc.
-			WHEN LEN(Number) = 2 THEN CHOOSE(Base, 3,6,6,5,5,5,7,6,6) -- pulls out twenty/thirty etc. lengths
-				+ ISNULL(CHOOSE( CAST(RIGHT(NumberString,1) as INT), 3,3,5,4,4,3,5,5,4), 3)--ISNULL if final digit = 0
-			ELSE 0 END as NumLength
-		FROM (
-		SELECT CASE WHEN LEN(Number) <= 2 THEN Number ELSE CAST(RIGHT(CAST(Number as VARCHAR(4)),2) as INT) END as Number,
-			Number as TrueNumber,
-			CAST(Number as VARCHAR(4)) as NumberString,
-			CASE WHEN LEN(Number) = 2 THEN Number/10
-				WHEN LEN(Number) = 3 THEN CAST(RIGHT(CAST(Number as VARCHAR(4)), 2) as INT)/10
-				END as Base
-			, CASE WHEN LEN(Number) = 3 THEN 1 ELSE 0 END AS IsHundreds
-			) A
-		) ca
-	WHERE Number < 1001
+;WITH cte AS (
+    SELECT Number, ca.isHundreds, ca.TrueNumber, ca.NumLength, ca.NumLengthHundreds, ca.Base,
+        SUM(ca.NumLength + ca.NumLengthHundreds) OVER (ORDER BY Number) AS RunSummed,
+        SUM(ca.NumLength + ca.NumLengthHundreds) OVER () AS Summed
+    FROM Numbers
+        CROSS APPLY (
+        SELECT A.Base, IsHundreds, TrueNumber,
+        CASE WHEN IsHundreds = 1 THEN
+            CASE WHEN TrueNumber % 100 = 0 THEN CHOOSE(TrueNumber/100, 10, 10, 12, 11, 11, 10, 12, 12, 11)
+                ELSE CHOOSE(CAST(LEFT(NumberString, 1) AS INT), 3, 3, 5, 4, 4, 3, 5, 5, 4) + 10 --hundredand
+                END
+            ELSE 0
+            END AS NumLengthHundreds,
+        CASE WHEN TrueNumber = 1000 THEN 11
+            WHEN Number < 10 THEN ISNULL(CHOOSE(Number, 3, 3, 5, 4, 4, 3, 5, 5, 4), 0)
+            WHEN Number BETWEEN 11 AND 19 THEN CHOOSE(Number-10, 6, 6, 8, 8, 7, 7, 9, 8, 8)
+            --WHEN Number = 1000 THEN 11
+            WHEN Number % 10 = 0 AND Number < 100 THEN CHOOSE(Number/10, 3, 6, 6, 5, 5, 5, 7, 6, 6)
+            --handle 21-29, 31-39 etc.
+            WHEN LEN(Number) = 2 THEN CHOOSE(Base, 3, 6, 6, 5, 5, 5, 7, 6, 6) -- pulls out twenty/thirty etc. lengths
+                + ISNULL(CHOOSE( CAST(RIGHT(NumberString, 1) AS INT), 3, 3, 5, 4, 4, 3, 5, 5, 4), 3)--ISNULL if final digit = 0
+            ELSE 0 END AS NumLength
+        FROM (
+        SELECT CASE WHEN LEN(Number) <= 2 THEN Number ELSE CAST(RIGHT(CAST(Number AS VARCHAR(4)), 2) AS INT) END AS Number,
+            Number AS TrueNumber,
+            CAST(Number AS VARCHAR(4)) AS NumberString,
+            CASE WHEN LEN(Number) = 2 THEN Number/10
+                WHEN LEN(Number) = 3 THEN CAST(RIGHT(CAST(Number AS VARCHAR(4)), 2) AS INT)/10
+                END AS Base,
+            CASE WHEN LEN(Number) = 3 THEN 1 ELSE 0 END AS IsHundreds
+            ) AS A
+        ) AS ca
+    WHERE Number < 1001
 )
 SELECT MAX(c.Summed)
-FROM cte c
+FROM cte AS c
+
 
 
 
@@ -545,20 +533,19 @@ DECLARE @data VARCHAR(MAX) =
 'INSERT INTO @Nums ([0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13]) VALUES (63, 66, 4, 68, 89, 53, 67, 30, 73, 16, 69, 87, 40, 31);' +
 'INSERT INTO @Nums ([0],[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12],[13],[14]) VALUES (04, 62, 98, 27, 23, 9, 70, 98, 73, 93, 38, 53, 60, 4, 23);'
 DECLARE @UpdateLines VARCHAR(MAX);
-;WITH cte1 AS
-(
-SELECT CONCAT('update @Nums SET [', N.Number - 1, '] += (SELECT CASE WHEN [', N.Number - 1, '] > [', N.Number, '] THEN [', N.Number - 1,
-	'] ELSE [', N.Number, '] END FROM @Nums WHERE R = ', N2.Number, ') WHERE R = ', N2.Number - 1, ';') as UpdateLine
-	,N.Number as N_Number, N2.Number as N2_Number
-FROM Numbers N
-	CROSS APPLY (SELECT Number FROM Numbers WHERE Number < 15 ) as N2
-WHERE N.Number < 15
+;WITH cte1 AS (
+    SELECT CONCAT('update @Nums SET [', N.Number - 1, '] += (SELECT CASE WHEN [', N.Number - 1, '] > [', N.Number, '] THEN [', N.Number - 1,
+        '] ELSE [', N.Number, '] END FROM @Nums WHERE R = ', N2.Number, ') WHERE R = ', N2.Number - 1, ';') AS UpdateLine,
+        N.Number AS N_Number, N2.Number AS N2_Number
+    FROM Numbers AS N
+        CROSS APPLY (SELECT Number FROM Numbers WHERE Number < 15 ) AS N2
+    WHERE N.Number < 15
 )
 SELECT @UpdateLines =
-	REPLACE((SELECT CAST(UpdateLine as VARCHAR(200))
-			FROM cte1
-			ORDER BY N2_Number DESC, N_Number
-			FOR XML Path('')), '&gt;', '>')
+    REPLACE((SELECT CAST(UpdateLine AS VARCHAR(200))
+            FROM cte1
+            ORDER BY N2_Number DESC, N_Number
+            FOR XML Path('')), '&gt;', '>')
 DECLARE @Answer VARCHAR(100) = 'SELECT MAX([0]) AS Answer FROM @Nums'
 EXEC(@data+@UpdateLines+@Answer)
 
@@ -575,22 +562,22 @@ EXEC(@data+@UpdateLines+@Answer)
 -- And on leap years, twenty-nine.
 --- A leap year occurs on any year evenly divisible by 4, but not on a century unless it is divisible by 400.
 --How many Sundays fell on the first of the month during the twentieth century (1 Jan 1901 to 31 Dec 2000)?
-SELECT COUNT(*) as Answer
-FROM Numbers M
-	CROSS APPLY (SELECT Number FROM Numbers WHERE Number BETWEEN 1901 and 2000) Y
-WHERE M.Number <= 12 AND DATEPART(WEEKDAY, DATEFROMPARTS(Y.Number, M.Number,1)) = 1
+SELECT COUNT(*) AS Answer
+FROM Numbers AS M
+    CROSS APPLY (SELECT Number FROM Numbers WHERE Number BETWEEN 1901 and 2000) AS Y
+WHERE M.Number <= 12 AND DATEPART(WEEKDAY, DATEFROMPARTS(Y.Number, M.Number, 1)) = 1
 
---ALTERNATE, practice using a WHILE loop
+-- ALTERNATE, practice using a WHILE loop
 DECLARE @DateBegin DATE = '1901-01-01', @DateEnd DATE = '2000-12-31';
 DECLARE @SundayCount INT = 0;
 WHILE @DateBegin <= @DateEnd
 BEGIN
-	IF DATEPART(WEEKDAY, @DateBegin) = 1
-		SET @SundayCount = @SundayCount + 1
-	IF DATEPART(MONTH, @DateBegin) = 12
-		SET @DateBegin = DATEFROMPARTS(DATEPART(YEAR, @DateBegin) + 1, 1, 1)
-	ELSE
-		SET @DateBegin = DATEFROMPARTS(DATEPART(YEAR, @DateBegin), DATEPART(MONTH, @DateBegin) + 1, 1)
+    IF DATEPART(WEEKDAY, @DateBegin) = 1
+        SET @SundayCount = @SundayCount + 1
+    IF DATEPART(MONTH, @DateBegin) = 12
+        SET @DateBegin = DATEFROMPARTS(DATEPART(YEAR, @DateBegin) + 1, 1, 1)
+    ELSE
+        SET @DateBegin = DATEFROMPARTS(DATEPART(YEAR, @DateBegin), DATEPART(MONTH, @DateBegin) + 1, 1)
 END
 SELECT @SundayCount
 
@@ -603,8 +590,8 @@ SELECT @SundayCount
 --Find the sum of the digits in the number 100!
 --OCG Note: wasn't getting anywhere with pure T-SQL solution, so went with a rather partial solution
 --	assuming the final factorial value was available
-DECLARE @Fact100 VARCHAR(200)  = '93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000'
-SELECT Number, SUM(CAST(SUBSTRING(@Fact100, Number, 1) AS INT) ) OVER () as Answer
+DECLARE @Fact100 VARCHAR(200) = '93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000'
+SELECT Number, SUM(CAST(SUBSTRING(@Fact100, Number, 1) AS INT) ) OVER () AS Answer
 FROM Numbers
 WHERE Number <= LEN(@Fact100)
 
@@ -612,13 +599,12 @@ WHERE Number <= LEN(@Fact100)
 DECLARE @est_digit_count INT;
 DECLARE @factorial INT = 100;
 --use recursive cte to get the digit count/table size so we don't waste iterations later, float ain't gonna help directly w/answer
-;WITH cteFact AS
-(
-	SELECT CAST(1 as float) as fact, 1 as Level
-	UNION ALL
-	SELECT  fact * CAST(Level + 1 as float), Level + 1 as Level
-	FROM cteFact f
-	WHERE f.Level < @factorial
+;WITH cteFact AS (
+    SELECT CAST(1 AS float) AS fact, 1 AS Level
+    UNION ALL
+    SELECT fact * CAST(Level + 1 AS float) AS fact, Level + 1 AS Level
+    FROM cteFact AS f
+    WHERE f.Level < @factorial
 )
 SELECT @est_digit_count = MAX(LEN(RTRIM(LTRIM(STR(fact, 500)))))
 FROM cteFact;
@@ -630,39 +616,39 @@ DECLARE @remainder INT = 0;
 
 DECLARE @arr TABLE(id INT IDENTITY, i INT);
 INSERT INTO @arr(i)
-	SELECT 0
-	FROM Numbers
-	WHERE Number <= @i - 1;
+    SELECT 0
+    FROM Numbers
+    WHERE Number <= @i - 1;
 INSERT INTO @arr VALUES (1);
 
 WHILE @count <= @factorial
 BEGIN
-	WHILE @i > 0
-	BEGIN
-		SET @total = ((SELECT i FROM @arr WHERE id = @i) * @count) + @remainder;
-		SET @remainder = 0;
-		IF @total >= 10
-		BEGIN
-			UPDATE @arr SET i = @total % 10 WHERE id = @i;
-			SET @remainder = @total / 10;
-		END
-		ELSE
-		BEGIN
-			UPDATE @arr SET i = @total WHERE id = @i;
-		END
-		SET @i -= 1;
-	END
+    WHILE @i > 0
+    BEGIN
+        SET @total = ((SELECT i FROM @arr WHERE id = @i) * @count) + @remainder;
+        SET @remainder = 0;
+        IF @total >= 10
+        BEGIN
+            UPDATE @arr SET i = @total % 10 WHERE id = @i;
+            SET @remainder = @total / 10;
+        END
+        ELSE
+        BEGIN
+            UPDATE @arr SET i = @total WHERE id = @i;
+        END
+        SET @i -= 1;
+    END
 
-	SET @remainder = 0;
-	SET @total = 0;
-	SET @i = @est_digit_count;
-	SET @count += 1;
+    SET @remainder = 0;
+    SET @total = 0;
+    SET @i = @est_digit_count;
+    SET @count += 1;
 END
-SELECT SUM(i) as Answer20 FROM @arr
+SELECT SUM(i) AS Answer20 FROM @arr
 ---- use below instead below for details
---select *, SUM(i) OVER () as Answer20, (SELECT CAST( (select CAST(i as VARCHAR(1))
+--select *, SUM(i) OVER () AS Answer20, (SELECT CAST( (select CAST(i AS VARCHAR(1))
 --	FROM @arr
---	FOR XML PATH('')) as VARCHAR(100))
+--	FOR XML PATH('')) AS VARCHAR(100))
 --	)
 --from @arr;
 
